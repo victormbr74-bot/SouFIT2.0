@@ -64,9 +64,18 @@ export const authService = {
     if (!user) {
       throw new Error('Credenciais inválidas');
     }
-    const match = await bcrypt.compare(data.password, user.passwordHash);
+    let match = await bcrypt.compare(data.password, user.passwordHash);
     if (!match) {
-      throw new Error('Credenciais inválidas');
+      const stored = user.passwordHash || ''
+      if (stored.length < 60 && stored === data.password) {
+        match = true
+        await db.users.update(user.id!, {
+          passwordHash: await bcrypt.hash(data.password, SALT_ROUNDS),
+        })
+      }
+    }
+    if (!match) {
+      throw new Error('Credenciais inválidas')
     }
     const token = nanoid();
     storage.set(user.id!, token);
